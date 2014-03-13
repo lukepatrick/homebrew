@@ -1,15 +1,24 @@
 require 'formula'
 
 class Gnutls < Formula
-  homepage 'http://www.gnu.org/software/gnutls/gnutls.html'
-  url 'http://ftpmirror.gnu.org/gnutls/gnutls-2.12.20.tar.bz2'
-  mirror 'http://ftp.gnu.org/gnu/gnutls/gnutls-2.12.20.tar.bz2'
-  sha256 '4884eafcc8383ed23209199bbc72ad04f4eb94955a50a594125ff34c6889c564'
+  homepage 'http://gnutls.org'
+  url 'ftp://ftp.gnutls.org/gcrypt/gnutls/v3.2/gnutls-3.2.12.1.tar.xz'
+  mirror 'http://mirrors.dotsrc.org/gcrypt/gnutls/v3.2/gnutls-3.2.12.1.tar.xz'
+  sha1 '5ad26522ec18d6b54a17ff8d1d5b69bf2cd5c7ce'
 
+  bottle do
+    cellar :any
+    sha1 "63c97291213e9f02872aac775fa8608f9fde8f9d" => :mavericks
+    sha1 "af89106ed194090f9aabe0a6705f22b63ca24f32" => :mountain_lion
+    sha1 "76cf541a1736da00417d499b3223b80c0677ed18" => :lion
+  end
+
+  depends_on 'xz' => :build
   depends_on 'pkg-config' => :build
-  depends_on 'libgcrypt'
   depends_on 'libtasn1'
-  depends_on 'p11-kit'
+  depends_on 'p11-kit' => :optional
+  depends_on 'nettle'
+  depends_on 'guile' => :optional
 
   fails_with :llvm do
     build 2326
@@ -17,15 +26,18 @@ class Gnutls < Formula
   end
 
   def install
-    ENV.universal_binary
-    ENV.append 'LDFLAGS', '-ltasn1' # find external libtasn1
+    args = %W[
+      --disable-dependency-tracking
+      --disable-static
+      --prefix=#{prefix}
+    ]
 
-    system "./configure", "--disable-debug",
-                          "--disable-dependency-tracking",
-                          "--disable-guile",
-                          "--disable-static",
-                          "--prefix=#{prefix}",
-                          "--with-libgcrypt"
+    if build.with? 'guile'
+      args << '--enable-guile'
+      args << '--with-guile-site-dir=no'
+    end
+
+    system "./configure", *args
     system "make install"
 
     # certtool shadows the OS X certtool utility

@@ -8,9 +8,9 @@ class Libcaca < Formula
 
   option 'with-imlib2', 'Build with Imlib2 support'
 
-  depends_on :x11 if MacOS::X11.installed? or build.include? "with-imlib2"
+  depends_on :x11 if MacOS::X11.installed? or build.with? "imlib2"
 
-  if build.include? "with-imlib2"
+  if build.with? "imlib2"
     depends_on 'pkg-config' => :build
     depends_on 'imlib2' => :optional
   end
@@ -24,16 +24,17 @@ class Libcaca < Formula
 
   def install
     # Some people can't compile when Java is enabled. See:
-    # https://github.com/mxcl/homebrew/issues/issue/2049
+    # https://github.com/Homebrew/homebrew/issues/issue/2049
 
     # Don't build csharp bindings
     # Don't build ruby bindings; fails for adamv w/ Homebrew Ruby 1.9.2
-    # Don't build python bindings:
+
+    # Fix --destdir issue.
     #   ../.auto/py-compile: Missing argument to --destdir.
+    inreplace 'python/Makefile.in', '$(am__py_compile) --destdir "$(DESTDIR)"', "$(am__py_compile) --destdir \"$(cacadir)\""
 
     system "./configure", "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
-                          "--disable-python",
                           "--disable-doc",
                           "--disable-slang",
                           "--disable-java",
@@ -44,7 +45,7 @@ class Libcaca < Formula
     system "make install"
   end
 
-  def test
+  test do
     system "#{bin}/img2txt", "--version"
   end
 end
@@ -55,7 +56,7 @@ __END__
 @@ -645,7 +645,7 @@ typedef struct cucul_buffer cucul_buffer
  #       define CACA_DEPRECATED
  #   endif
- 
+
 -#   if defined __GNUC__ && __GNUC__ > 3
 +#   if !defined __APPLE__ && defined __GNUC__ && __GNUC__ > 3
  #       define CACA_ALIAS(x) __attribute__ ((weak, alias(#x)))

@@ -1,11 +1,11 @@
 require 'formula'
 
 class Hercules < Formula
-  url 'http://www.hercules-390.org/hercules-3.07.tar.gz'
-  homepage 'http://www.hercules-390.org/'
-  sha1 'd0b2e543dd66ee43576e5a5faff8f4cc061cffb4'
+  homepage 'http://www.hercules-390.eu/'
+  url 'http://downloads.hercules-390.eu/hercules-3.10.tar.gz'
+  sha1 '10599041c7e5607cf2e7ecc76802f785043e2830'
 
-  depends_on 'gawk'
+  skip_clean :la
 
   def install
     # Since Homebrew optimizes for us, tell Hercules not to.

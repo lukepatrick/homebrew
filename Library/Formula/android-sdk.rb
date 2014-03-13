@@ -2,21 +2,20 @@ require 'formula'
 
 class AndroidSdk < Formula
   homepage 'http://developer.android.com/index.html'
-  url 'http://dl.google.com/android/android-sdk_r20.0.3-macosx.zip'
-  version 'r20.0.3'
-  sha1 'c02403c2e29952e6bbd632767b5c3cd3618c3e80'
+  url 'http://dl.google.com/android/android-sdk_r22.6-macosx.zip'
+  version '22.6'
+  sha1 'f1da847ba793b38a510f9c9c70ff4baa5eba1427'
 
-  # TODO docs and platform-tools
-  # See the long comment below for the associated problems
-  def self.var_dirs
-    %w[platforms samples temp add-ons sources system-images extras]
+  conflicts_with 'android-platform-tools',
+    :because => "the Platform-tools are be installed as part of the SDK."
+
+  resource 'completion' do
+    url 'https://raw.github.com/CyanogenMod/android_sdk/938c8d70af7d77dfcd1defe415c1e0deaa7d301b/bash_completion/adb.bash'
+    sha1 '6dfead9b1350dbe1c16a1c80ed70beedebfa39eb'
   end
 
-  skip_clean var_dirs
-
   def install
-    mv 'SDK Readme.txt', prefix/'README'
-    mv 'tools', prefix
+    prefix.install 'tools', 'SDK Readme.txt' => 'README'
 
     %w[android apkbuilder ddms dmtracedump draw9patch etc1tool emulator
     emulator-arm emulator-x86 hierarchyviewer hprof-conv lint mksdcard
@@ -30,14 +29,14 @@ class AndroidSdk < Formula
 
     # this is data that should be preserved across upgrades, but the Android
     # SDK isn't too smart, so we still have to symlink it back into its tree.
-    AndroidSdk.var_dirs.each do |d|
+    %w[platforms samples temp add-ons sources system-images extras].each do |d|
       dst = prefix/d
       src = var/'lib/android-sdk'/d
       src.mkpath unless src.directory?
       dst.make_relative_symlink src
     end
 
-    %w[aapt adb aidl dexdump dx fastboot llvm-rs-cc].each do |platform_tool|
+    %w[adb fastboot].each do |platform_tool|
       (bin/platform_tool).write <<-EOS.undent
         #!/bin/sh
         PLATFORM_TOOL="#{prefix}/platform-tools/#{platform_tool}"
@@ -45,6 +44,17 @@ class AndroidSdk < Formula
         echo Use the \\`android\\' tool to install the \\"Android SDK Platform-tools\\".
       EOS
     end
+
+    %w[aapt aidl dexdump dx llvm-rs-cc].each do |build_tool|
+      (bin/build_tool).write <<-EOS.undent
+        #!/bin/sh
+        BUILD_TOOL="#{prefix}/build-tools/17.0.0/#{build_tool}"
+        test -f "$BUILD_TOOL" && exec "$BUILD_TOOL" "$@"
+        echo Use the \\`android\\' tool to install the \\"Android SDK Build-tools\\".
+      EOS
+    end
+
+    bash_completion.install resource('completion').files('adb.bash' => 'adb-completion.bash')
   end
 
   def caveats; <<-EOS.undent
@@ -57,7 +67,7 @@ class AndroidSdk < Formula
     updates. If you want to try and fix this then see the comment in this formula.
 
     You may need to add the following to your .bashrc:
-      export ANDROID_SDK_ROOT=#{prefix}
+      export ANDROID_HOME=#{opt_prefix}
     EOS
   end
 

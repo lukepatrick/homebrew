@@ -5,23 +5,30 @@ require 'formula'
 
 class Cairo < Formula
   homepage 'http://cairographics.org/'
-  url 'http://cairographics.org/releases/cairo-1.12.6.tar.xz'
-  mirror 'http://ftp-nyc.osuosl.org/pub/gentoo/distfiles/cairo-1.12.6.tar.xz'
-  sha256 '64b0cb89ef45972427f65bc5974e1c2e060bececdea1785fc9b7b6c7f1f42ae1'
+  url 'http://cairographics.org/releases/cairo-1.12.16.tar.xz'
+  mirror 'https://downloads.sourceforge.net/project/machomebrew/mirror/cairo-1.12.16.tar.xz'
+  sha256 '2505959eb3f1de3e1841023b61585bfd35684b9733c7b6a3643f4f4cbde6d846'
+
+  bottle do
+    sha1 "fb623b0b06693dfb659c3dc87bd65d0285a9c0ed" => :mavericks
+    sha1 "ae417942cd2b091d183cc02fdb1f70c11d836090" => :mountain_lion
+    sha1 "d71a2ed86188601756a49c1dd7264636d90e3966" => :lion
+  end
 
   keg_only :provided_pre_mountain_lion
 
   option :universal
   option 'without-x', 'Build without X11 support'
 
-  env :std if build.universal?
-
-  depends_on :libpng
-  depends_on 'pixman'
   depends_on 'pkg-config' => :build
   depends_on 'xz'=> :build
-  depends_on 'glib' unless build.include? 'without-x'
-  depends_on :x11 unless build.include? 'without-x'
+  # harfbuzz requires cairo-ft to build
+  depends_on :freetype
+  depends_on :fontconfig
+  depends_on :libpng
+  depends_on 'pixman'
+  depends_on 'glib'
+  depends_on :x11 if build.with? 'x'
 
   def install
     ENV.universal_binary if build.universal?
@@ -29,10 +36,16 @@ class Cairo < Formula
     args = %W[
       --disable-dependency-tracking
       --prefix=#{prefix}
+      --enable-gobject=yes
     ]
 
-    args << '--with-x' unless build.include? 'without-x'
-    args << '--enable-xcb=no' if MacOS.version == :leopard
+    if build.without? 'x'
+      args << '--enable-xlib=no' << '--enable-xlib-xrender=no'
+    else
+      args << '--with-x'
+    end
+
+    args << '--enable-xcb=no' if MacOS.version <= :leopard
 
     system "./configure", *args
     system "make install"

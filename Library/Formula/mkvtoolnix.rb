@@ -1,57 +1,96 @@
 require 'formula'
 
+class Ruby19 < Requirement
+  fatal true
+  default_formula "ruby"
+
+  satisfy :build_env => false do
+    next unless which "ruby"
+    version = /\d\.\d/.match `ruby --version 2>&1`
+    next unless version
+    version >= Version.new("1.9")
+  end
+
+  def modify_build_environment
+    ruby = which "ruby"
+    return unless ruby
+    ENV.prepend_path "PATH", ruby.dirname
+  end
+
+  def message; <<-EOS.undent
+    The mkvtoolnix buildsystem needs Ruby >=1.9
+    EOS
+  end
+end
+
 class Mkvtoolnix < Formula
   homepage 'http://www.bunkus.org/videotools/mkvtoolnix/'
-  url 'http://www.bunkus.org/videotools/mkvtoolnix/sources/mkvtoolnix-5.0.1.tar.bz2'
-  sha1 '900211d47ba6cbeb4188bb45a492a2b9edf08ed2'
+  url 'http://www.bunkus.org/videotools/mkvtoolnix/sources/mkvtoolnix-6.8.0.tar.xz'
+  sha1 'd742eb0c38de48d0f12363252115c0d966e8abc3'
 
   head 'https://github.com/mbunkus/mkvtoolnix.git'
 
-  depends_on 'boost'
+  depends_on 'pkg-config' => :build
+  depends_on Ruby19
+  depends_on 'boost' => 'c++11'
   depends_on 'libvorbis'
-  depends_on 'libmatroska'
+  depends_on 'libmatroska' => 'c++11'
+  depends_on 'libebml' => 'c++11'
   depends_on 'flac' => :optional
   depends_on 'lzo' => :optional
 
   fails_with :clang do
-    build 318
-    cause "Compilation errors with older clang."
+    build 425
+    cause 'Mkvtoolnix requires a C++11 compliant compiler.'
   end
 
-  # Patch to build with #define foreach BOOST_FOREACH
-  # See: https://svn.boost.org/trac/boost/ticket/6131
-  def patches
-    DATA unless build.head?
+  fails_with :gcc do
+    build 5666
+    cause 'Mkvtoolnix requires a C++11 compliant compiler.'
+  end
+
+  fails_with :gcc => '4.5.4' do
+    cause 'Mkvtoolnix requires a C++11 compliant compiler.'
+  end
+
+  fails_with :gcc_4_0 do
+    cause 'Mkvtoolnix requires a C++11 compliant compiler.'
+  end;
+
+  fails_with :llvm do
+    build 2336
+    cause 'Mkvtoolnix requires a C++11 compliant compiler.'
   end
 
   def install
+    ENV.cxx11
+
+    ENV['ZLIB_CFLAGS'] = '-I/usr/include'
+    ENV['ZLIB_LIBS'] = '-L/usr/lib -lz'
+
+    boost = Formula["boost"].opt_prefix
+
     system "./configure", "--disable-debug",
                           "--prefix=#{prefix}",
-                          "--with-boost-libdir=#{HOMEBREW_PREFIX}/lib", # For non-/usr/local prefix
-                          "--with-boost-regex=boost_regex-mt" # via macports
+                          "--disable-gui",
+                          "--disable-wxwidgets",
+                          "--without-curl",
+                          "--with-boost=#{boost}"
     system "./drake", "-j#{ENV.make_jobs}"
     system "./drake install"
   end
+
+  test do
+    mkv_path = testpath/"Great.Movie.mkv"
+    sub_path = testpath/"subtitles.srt"
+    sub_path.write <<-EOS.undent
+      1
+      00:00:10,500 --> 00:00:13,000
+      Homebrew
+    EOS
+
+    system "#{bin}/mkvmerge", "-o", mkv_path, sub_path
+    system "#{bin}/mkvinfo", mkv_path
+    system "#{bin}/mkvextract", "tracks", mkv_path, "0:#{sub_path}"
+  end
 end
-
-__END__
-diff --git a/src/common/common.h b/src/common/common.h
-index 16f7177..8e9e053 100644
---- a/src/common/common.h
-+++ b/src/common/common.h
-@@ -17,7 +17,6 @@
- #undef min
- #undef max
-
--#include <boost/foreach.hpp>
- #include <boost/format.hpp>
- #include <boost/regex.hpp>
- #include <string>
-@@ -83,6 +82,7 @@ extern unsigned int MTX_DLL_API verbose;
-
- #define foreach                  BOOST_FOREACH
- #define reverse_foreach          BOOST_REVERSE_FOREACH
-+#include <boost/foreach.hpp>
- #define mxforeach(it, vec)       for (it = (vec).begin(); it != (vec).end(); it++)
- #define mxfind(value, cont)      std::find(cont.begin(), cont.end(), value)
- #define mxfind2(it, value, cont) ((it = std::find((cont).begin(), (cont).end(), value)) != (cont).end())

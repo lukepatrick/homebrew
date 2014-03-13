@@ -2,26 +2,24 @@ require 'formula'
 
 class Libvirt < Formula
   homepage 'http://www.libvirt.org'
-  url 'http://libvirt.org/sources/stable_updates/libvirt-0.9.11.6.tar.gz'
-  sha256 'ad2f77a05b2c66198ea74df1640c56b3d9f394b397eae8eec612fa1cb3efb04a'
+  url 'http://libvirt.org/sources/libvirt-1.2.1.tar.gz'
+  sha256 'bc29b5751bf36753c17e2fdbb75e70c7b07df3d9527586d3426e90f5f4abb898'
+  revision 2
 
-  # Patch from upstream for 0.9.11.6 only.  Will be in next release.
-  def patches
-    DATA if not build.devel?
-  end
-
-  # Latest (roughly) monthly release.
-  devel do
-    url 'http://libvirt.org/sources/libvirt-0.10.2.tar.gz'
-    sha256 '1fe69ae1268a097cc0cf83563883b51780d528c6493efe3e7d94c4160cc46977'
+  bottle do
+    sha1 "0bfaabdc25891e5f01915eba40c9ffc262fc5417" => :mavericks
+    sha1 "93fa00f726556ad96b33f71a4bffb55bac5f0ce4" => :mountain_lion
+    sha1 "b13fe900124c065e247d3a472197cca19d52221a" => :lion
   end
 
   option 'without-libvirtd', 'Build only the virsh client and development libraries'
 
-  depends_on "gnutls"
-  depends_on "yajl"
+  depends_on 'pkg-config' => :build
+  depends_on 'gnutls'
+  depends_on 'libgcrypt'
+  depends_on 'yajl'
 
-  if MacOS.version == :leopard
+  if MacOS.version <= :leopard
     # Definitely needed on Leopard, but not on Snow Leopard.
     depends_on "readline"
     depends_on "libxml2"
@@ -46,7 +44,7 @@ class Libvirt < Formula
             "--with-yajl",
             "--without-qemu"]
 
-    args << "--without-libvirtd" if build.include? 'without-libvirtd'
+    args << "--without-libvirtd" if build.without? 'libvirtd'
 
     system "./configure", *args
 
@@ -61,7 +59,7 @@ class Libvirt < Formula
 
     # If the libvirt daemon is built, update its config file to reflect
     # the Homebrew prefix
-    unless build.include? 'without-libvirtd'
+    if build.with? "libvirtd"
       inreplace "#{etc}/libvirt/libvirtd.conf" do |s|
         s.gsub! "/etc/", "#{HOMEBREW_PREFIX}/etc/"
         s.gsub! "/var/", "#{HOMEBREW_PREFIX}/var/"
@@ -69,49 +67,3 @@ class Libvirt < Formula
     end
   end
 end
-
-__END__
-diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
-index 06004ab..d53352f 100644
---- a/src/util/virnetdev.c
-+++ b/src/util/virnetdev.c
-@@ -929,7 +929,7 @@ int virNetDevValidateConfig(const char *ifname,
- }
- #else /* ! HAVE_STRUCT_IFREQ */
- int virNetDevValidateConfig(const char *ifname ATTRIBUTE_UNUSED,
--                            const virMacAddrPtr macaddr ATTRIBUTE_UNUSED,
-+                            const unsigned char *macaddr ATTRIBUTE_UNUSED,
-                             int ifindex ATTRIBUTE_UNUSED)
- {
-     virReportSystemError(ENOSYS, "%s",
-@@ -1663,7 +1663,7 @@ virNetDevLinkDump(const char *ifname ATTRIBUTE_UNUSED,
- int
- virNetDevReplaceNetConfig(char *linkdev ATTRIBUTE_UNUSED,
-                           int vf ATTRIBUTE_UNUSED,
--                          const virMacAddrPtr macaddress ATTRIBUTE_UNUSED,
-+                          const unsigned char *macaddress ATTRIBUTE_UNUSED,
-                           int vlanid ATTRIBUTE_UNUSED,
-                           char *stateDir ATTRIBUTE_UNUSED)
- {
-diff --git a/src/util/virnetlink.c b/src/util/virnetlink.c
-index 2772d9b..0e4d76b 100644
---- a/src/util/virnetlink.c
-+++ b/src/util/virnetlink.c
-@@ -672,7 +672,7 @@ int virNetlinkEventServiceLocalPid(void)
- int virNetlinkEventAddClient(virNetlinkEventHandleCallback handleCB ATTRIBUTE_UNUSED,
-                              virNetlinkEventRemoveCallback removeCB ATTRIBUTE_UNUSED,
-                              void *opaque ATTRIBUTE_UNUSED,
--                             const virMacAddrPtr macaddr ATTRIBUTE_UNUSED)
-+                             const unsigned char *macaddr ATTRIBUTE_UNUSED)
- {
-     netlinkError(VIR_ERR_INTERNAL_ERROR, "%s", _(unsupported));
-     return -1;
-@@ -682,7 +682,7 @@ int virNetlinkEventAddClient(virNetlinkEventHandleCallback handleCB ATTRIBUTE_UN
-  * virNetlinkEventRemoveClient: unregister a callback from a netlink monitor
-  */
- int virNetlinkEventRemoveClient(int watch ATTRIBUTE_UNUSED,
--                                const virMacAddrPtr macaddr ATTRIBUTE_UNUSED)
-+                                const unsigned char *macaddr ATTRIBUTE_UNUSED)
- {
-     netlinkError(VIR_ERR_INTERNAL_ERROR, "%s", _(unsupported));
-     return -1;
